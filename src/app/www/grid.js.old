@@ -1,0 +1,478 @@
+(function($) {
+  $.fn.grid = function(o) {
+    var cfg = {
+      height: 400,          // set the height of the grid
+      width: 600,           // the width of the grid
+      key: '',              // the data field containing primary / unique key
+      size: 50,             // default page size
+      title: 'Grid',        // title of grid
+      sort: '',             // sort column
+      multiSelect: false,   // enable row multiselect
+      url: 'http://localhost:81/node/json_index',	// url used to get data
+      columns: [],
+      buttons: [],
+
+      cssGrid: 'grid',                        // grid style
+      cssTitle: 'gridTitle',                  // grid style
+      cssHeader: 'gridHeader',                // grid style
+      cssRow: 'gridRow',                      // grid style
+      cssRowAlt: 'gridRowAlt',                // grid style
+      cssRowHover: 'gridRowHover',            // grid style
+      cssRowCell: 'gridRowCell',              // grid style
+      cssHeaderCell: 'gridHeaderCell',        // grid style
+      cssHeaderHover: 'gridHeaderHover',      // grid style
+      cssRowSelected: 'gridRowSelected',      // grid style
+      cssFooter: 'gridFooter',                // grid style
+      cssResizeHandle: 'gridResizeHandle',    // grid style
+      cssPager: 'gridPager',                  // grid style			
+
+      // events
+      getData: function(page, pageSize) {},   // raised when control needs a page of data
+      rowClick: function(row, selected) { },  // raised when row clicked by user
+      rowDblClick: function(row, selected) { },
+      renderRow: function(row) { },           // allows overriding of default row rendering.
+      renderHeader: function(headers) { }     // allows overriding of header rendering.
+    };
+
+    // extend any optional parameters passed in with the defaults
+    $.extend(true, cfg, o);
+
+    // for each item in the wrapped set,
+    // create a grid, and return a 'modified' object
+    // with enhanced grid stuff in it.
+    return this.each(function() {
+      var grid = this;
+      $(grid).extend(grid, {
+        _scrollLeft: 0,
+        _scrollTop: 0,
+        
+        // data properties
+        selectedIDs: [],    // rows selected
+        selectedRow: {},
+        
+        // parts of the grid
+        _divResizeHandles: null,
+        _divTitle: null,
+        _divHeader: null,
+        _divBody: null,
+        _divFooter: null,
+
+        // sorting * paging
+        _sort: cfg.sort || cfg.key,
+        _direction: 'ASC',
+        _page: 1,
+
+        // column widths
+        _isHeadersLoaded: false,
+        _columnWidths: [],
+        _columnOuterWidths: [],
+        _resizeHandleOffsets: [],
+
+        // clears grid
+        clear: function() {
+          grid.selectedIDs = [];
+          $(grid).find('#' + grid.id + '_data').empty();
+        },
+
+        // creates new grid
+        init: function() {
+          grid.buildGrid();
+          grid.clear();
+          grid.getData(1, cfg.size);
+          $(grid._divBody).scrollTop(0);
+        },
+
+        resizeColumnWidths: function() {
+          var totalWidth = 0;
+          for (var c = 0; c < grid._columnWidths.length; c++) {
+            totalWidth = totalWidth + grid._columnOuterWidths[c];
+          }
+
+          $(grid._divHeader).find('div').width(totalWidth).css('white-space','nowrap');;
+          $(grid._divBody).find('div').width(totalWidth).css('white-space','nowrap');
+          $(grid._divHeader).find('div').width(totalWidth).css('white-space','nowrap');;
+          $(grid._divBody).find('div').width(totalWidth).css('white-space','nowrap');
+          $(grid._divBody).find('div').each(function() {
+            for (var c = 0; c < grid._columnWidths.length; c++) {
+              $(this)
+              .find('span')
+              .eq(c)
+              .width(grid._columnWidths[c])
+              .css({
+                display: 'inline-block',
+                overflow: 'hidden',
+                'white-space': 'nowrap'
+              });
+            }
+          });
+
+          for (var c = 0; c < grid._columnWidths.length; c++) {
+            $(grid._divHeader)
+            .find('span')
+            .eq(c)
+            .width(grid._columnWidths[c])
+            .css({
+              display: 'inline-block',
+              overflow: 'hidden',
+              'white-space': 'nowrap'
+            });
+
+            grid._resizeHandleOffsets[c] = $(grid._divHeader)
+            .find('span')
+            .eq(c)
+            .offset()
+            .left - $(grid._divHeader).offset().left + grid._columnOuterWidths[c];
+          }
+
+          $(grid._divBody).scrollLeft(grid._scrollLeft);
+        },
+
+        getData_cb: function(page, pageSize, json) {
+          // status
+          var divStatus = $('#' + grid.id + "_status");
+          $(divStatus).html("Records " + (((page - 1) * pageSize) + 1) + " to " + (json.length < (((page - 1) * pageSize) + pageSize) ? json.length : (((page - 1) * pageSize) + pageSize)) + " of " + json.length);
+
+          // buttons
+          var divButtons = $('#' + grid.id + "_buttons");
+          divButtons.empty()
+          for (var i = 0; i < cfg.buttons.length; i++) {
+	    $('<input type="button" value="' + cfg.buttons[i].value + '"/>')
+            .data("index",i)
+            .click(function() {
+              if (cfg.buttons[$(this).data("index")].click) {
+                cfg.buttons[$(this).data("index")].click(grid.selectedRow);
+              }
+            })
+            .appendTo(divButtons);
+          }
+
+          // pager
+          var divPager = $('#' + grid.id + "_pager").empty();
+
+          // first
+          var setFirst = $('<input type="button" value="<<" id="' + grid.id + '_first" />')
+          .click(function() { grid.getData(1, pageSize); })
+          .appendTo(divPager);
+
+          // previous
+          var setFirst = $('<input type="button" value="<" id="' + grid.id + '_first" />')
+          .click(function() { grid.getData((page > 1 ? page - 1 : 1), pageSize); })
+          .appendTo(divPager);
+
+          // set page
+          var setPage = $('<input type="text" value="' + page + '" style="width:50px;" id="' + grid.id + '_page" />')
+          .blur(function() {grid.getData($(this).val(), pageSize);})
+          .appendTo(divPager);
+
+          // next
+          var setFirst = $('<input type="button" value=">" id="' + grid.id + '_first" />')
+          .click(function() { grid.getData((page < Math.ceil(json.length / pageSize) ? page + 1 : Math.ceil(json.length / pageSize)), pageSize); })
+          .appendTo(divPager);
+
+          // last
+          var setFirst = $('<input type="button" value=">>" id="' + grid.id + '_first" />')
+          .click(function() { grid.getData(Math.ceil(json.length / pageSize), pageSize); })
+          .appendTo(divPager);
+
+          // get key
+          if (cfg.key == '' && json.length > 0) {
+            // assume the first property is the key
+            for (var i in json[0]) {
+              cfg.key = i;
+              break;
+            }
+          }
+
+          // add column headers
+          grid.loadColumnHeaders(json);
+
+          // load rows
+          for (var r = 0; r < json.length; r++) {
+            var row = json[r];
+
+            // allow user to override rendering of data
+            cfg.renderRow(row);
+            
+            var rowDiv = $('<div/>')
+            .attr('rowid', row[cfg.key])
+            .data('row', row)
+            .hover(
+              function() { $(this).addClass(cfg.cssRowHover); },
+              function() { $(this).removeClass(cfg.cssRowHover); }
+            )
+            .toggle(
+              function() {
+                if (cfg.multiSelect == true) {
+                  $(this).addClass(cfg.cssRowSelected)
+                  .attr('selected', true);
+                  var rowid = $(this).attr('rowid');
+                  grid.selectedIDs.push(rowid);
+                }
+              },
+              function() {
+                if (cfg.multiSelect == true) {
+                  $(this).removeClass(cfg.cssRowSelected)
+                  .attr('selected', false);
+                  var rowid = $(this).attr('rowid');
+                  grid.selectedIDs.splice($.inArray(rowid, grid.selectedIDs), 1);
+                }
+              }
+            )
+            .dblclick(function() {
+              if(cfg.rowDblClick) {
+                // the data-row attribute comes from the $.data() method
+                cfg.rowDblClick($(this).data('row'));
+              }
+            })
+            .click(function() {
+              if (cfg.multiSelect == false) {
+                grid.selectedIDs = [];
+                $(grid._divBody).find('div')
+                .removeClass(cfg.cssRowSelected)
+                .attr('selected', false);
+                $(this).addClass(cfg.cssRowSelected)
+                .attr('selected', true);
+                var rowid = $(this).attr('rowid');
+                grid.selectedIDs.push(rowid);
+                grid.selectedRow = $(this).data('row');
+              }
+
+              //var row = grid._data[$(this).attr('rowid')];
+              if(cfg.rowClick) {
+                // the data-row attribute comes from the $.data() method
+                cfg.rowClick($(this).data('row'), $(this).attr('selected'));
+              }
+            }) // converts json to object.
+            .appendTo(grid._divBody);
+
+            for (var i=0; i<cfg.columns.length; i++) {
+              var col = cfg.columns[i];
+              $('<span/>')
+              .html(row[col])
+              .attr('title', row[col])
+              .appendTo(rowDiv);
+            }
+          }
+
+          // format rows
+          $(grid._divBody).find('span').addClass(cfg.cssRowCell);
+          $(grid._divBody).find('div:even').addClass(cfg.cssRow);
+          $(grid._divBody).find('div:odd').addClass(cfg.cssRowAlt);
+
+          // preserve previous scroll position (eg if user has sorted cols)
+          $(grid._divBody).scrollLeft(grid._scrollLeft);
+          $(grid._divBody).scrollTop(grid._scrollTop);
+
+          if (!grid._isHeadersLoaded) {
+            grid.calculateColumnWidths();
+            grid._isHeadersLoaded = true;
+          }
+
+          grid.resizeColumnWidths();
+          grid.addResizeHandles();
+        },
+
+        getData: function(page, pageSize) {
+          grid._page = page;
+
+          // remove existing page
+          $(grid._divBody).find('div').remove();
+
+          // data either comes from server (url)
+          // or javascript (getData)
+          if (cfg.url != null) {
+            $.ajax({
+              type: 'GET',
+              url: cfg.url,
+              dataType: 'json',
+              data: {
+                page: page,
+                pageSize: pageSize,
+                sort: 'ABC',
+                direction: 'ASC'
+              },
+              success: function(json) {
+                grid.getData_cb(page, pageSize, json);
+              }
+            });
+          } else if (cfg.getData != null) {
+            json = cfg.getData(page, pageSize, grid._sort, grid._direction);
+            getData_cb(page, pageSize, json)
+          } else {
+            alert('Either url or getData MUST be specified');
+          }
+        },
+
+        addResizeHandles: function() {
+          grid._divResizeHandles.empty();
+
+          for (var c = 0; c < grid._columnWidths.length; c++) {
+            var resize = $('<span/>')
+            .attr('resizeCol', c)
+            .addClass(cfg.cssResizeHandle)
+            .css({
+              position: 'absolute',
+              height: $(grid._divHeader).outerHeight(),
+              left: grid._resizeHandleOffsets[c],
+              top: Math.floor($(grid._divTitle).outerHeight())
+            })
+            .css('z-index', '20')
+            .mousedown(function(evt) {
+              $(this)
+              .height($(grid._divBody).height() + $(grid._divHeader).height())
+              .css('left', $(this).position().left)
+              .css('opacity','1')
+              .css('filter','alpha(opacity=100)');
+
+              $(grid).bind('mousemove', { col: $(this).attr('resizeCol') }, function(evt) {
+                var col = evt.data.col;
+                $('span.' + cfg.cssResizeHandle + ':eq(' + col + ')')
+                .css({ left: evt.clientX - $(grid).offset().left - $(grid._divResizeHandles).position().left });
+              });
+
+              $(grid._divHeader).css({ disabled: 'disabled' });
+              $(grid).bind('mouseup', { col: $(this).attr('resizeCol') }, function(evt) {
+                var col = evt.data.col;
+                $('.' + cfg.cssResizeHandle + ':eq(' + col + ')')
+                .height($(grid._divHeader).height())
+                .css('opacity','0')
+                .css('filter','alpha(opacity=0)');
+                $(this).unbind('mousemove').unbind('mouseup');
+
+                // now resize columns
+                var h = $(grid._divHeader).find('span:eq(' + col + ')');
+                var padding = (h).outerWidth(true) - (h).width();
+                var newWidth = evt.clientX - $(h).offset().left - padding;
+                grid._columnWidths[col] = evt.clientX - $(h).offset().left - padding;
+                grid._columnOuterWidths[col] = evt.clientX - $(h).offset().left;
+                grid.resizeColumnWidths();
+                grid.addResizeHandles();
+              });
+              return false;
+            })
+            .appendTo(grid._divResizeHandles);
+          }
+        },
+
+        calculateColumnWidths: function() {
+          var columns = $(grid._divBody).find('div:first span');
+          var headers = $(grid._divHeader).find('div:first span');
+
+          for (var c = 0; c < headers.length; c++) {
+            // set width of column to be min(headerColWidth,1stDataRowWidth)
+            grid._columnWidths[c] = $(columns[c]).width();
+            grid._columnOuterWidths[c] = $(columns[c]).outerWidth(true);
+            if ($(headers[c]).width() > grid._columnWidths[c]) {
+              grid._columnOuterWidths[c] = $(headers[c]).outerWidth(true);
+              grid._columnWidths[c] = $(headers[c]).width();
+            }
+          }
+        },
+
+        loadColumnHeaders: function(json) {
+          $(grid._divHeader).find('div').remove();
+          if (json.length > 0 && (cfg.columns==null || cfg.columns.length===0)) {
+            cfg.columns = [];
+            for (var propertyName in json[0]) {
+              cfg.columns.push(propertyName);
+            }
+          }
+
+          cfg.renderHeader(cfg.columns);
+
+          var rowDiv = $('<div />')
+          .addClass(cfg.cssHeader)				
+          .appendTo(grid._divHeader);
+
+          for (var i in cfg.columns) {
+            var header = $('<span />')
+            .html(cfg.columns[i])
+            .addClass(cfg.cssHeaderCell)
+            // prevent text being selected (improves UX)
+            .attr('unselectable', 'on')
+            .css('MozUserSelect', 'none')
+            .bind('selectstart', function() { return false; })
+            .attr('sort', i)
+            .css('overflow', 'hidden')
+            .hover(
+              function() { $(this).css('cursor', 'pointer').addClass(cfg.cssHeaderHover); },
+              function() { $(this).css('cursor', 'default').removeClass(cfg.cssHeaderHover); }
+            )
+            .click(function() {
+              grid._sort = $(this).attr('sort');
+              grid._direction = grid._direction == "ASC" ? "DESC" : "ASC";
+              grid.clear();
+              grid.getData(grid._page,50);
+            })
+            .appendTo(rowDiv);
+          }
+        },
+
+        // Builds the initial grid
+        buildGrid: function() {
+          // container
+          $(grid)
+          .css('width', cfg.width)
+          .addClass(cfg.cssGrid);
+
+          // resize handles
+          grid._divResizeHandles = $('<div id="' + grid.id + '_resizehandles"/>')
+          .appendTo(grid)
+          .width(cfg.width)
+          .css('z-index', '10')
+          .css({
+            position: 'absolute',
+            top: '0px',
+            left: '0px'
+          });
+
+          // title
+          grid._divTitle = $('<div id="' + grid.id + '_title"/>')
+          .appendTo(grid)
+          .width(cfg.width)
+          .addClass(cfg.cssTitle)
+          .html(cfg.title);
+
+          // header
+          grid._divHeader = $('<div id="' + grid.id + '_header"/>')
+          .appendTo(grid)
+          .css('position','relative');
+
+          // body (this is the bit that scrolls)
+          grid._divBody = $('<div id="' + grid.id + '_body"/>')
+          .appendTo(grid)
+          .css({
+            width: cfg.width,
+            height: cfg.height})
+          .css('overflow', 'auto')
+          .scroll(function(evt) {
+            grid._scrollLeft = $(this).scrollLeft();
+            grid._scrollTop = $(this).scrollTop();
+            var bodyHeight = $(grid._divBody).height();
+            $(grid._divHeader)
+            .css('left', $(this).scrollLeft() * -1);
+            $(grid._divResizeHandles)
+            .css('left', $(this).scrollLeft() * -1);
+          });
+
+          // footer
+          grid._divFooter = $('<div id="' + grid.id + '_footer"/>')
+          .addClass(cfg.cssFooter)
+          .appendTo(grid);
+
+          $('<div id="' + grid.id + '_status" style="float:left;">Status Bar</div>')
+          .appendTo(grid._divFooter);
+
+          $('<div id="' + grid.id + '_buttons" style="float:right;">Buttons</div>')
+          .addClass(cfg.cssPager)
+          .appendTo(grid._divFooter);
+
+          $('<div id="' + grid.id + '_pager" style="float:right;">&nbsp;</div><div style="clear:both;" />')
+          .addClass(cfg.cssPager)
+          .appendTo(grid._divFooter);
+        }
+      });
+      this.init();
+    });
+  };
+})(jQuery);

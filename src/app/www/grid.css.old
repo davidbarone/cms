@@ -1,0 +1,92 @@
+.grid
+{
+	font-family: sans-serif;
+	border: 1px solid black;
+	overflow: hidden;
+	border-radius: 4px;
+	position: relative;
+}
+
+.gridTitle
+{
+	background: #666;
+	color: White;
+	border-top-left-radius: 3px;
+	border-top-right-radius: 3px;
+	font-weight: bold;
+	padding: 8px;
+        font-size: 1.4em;
+}
+    
+.gridHeader
+{
+	background: #ccc;
+	border-bottom: #999;
+        font-size: 1.2em;
+
+}
+
+.gridHeaderHover
+{
+	background: #aaa;
+}
+
+.gridFooter
+{
+	padding: 4px;
+	border-bottom-left-radius: 3px;
+	border-bottom-right-radius: 3px;
+}
+
+.gridPager input
+{
+}
+
+.gridRow, .gridRowAlt
+{
+	border-top: 1px solid #ccc;
+}
+
+.gridRowAlt
+{
+	background-color: #e0e0e0;
+}
+
+.gridRowHover
+{
+	background-color: #999;
+}
+
+span.gridHeaderCell
+{
+	text-align: center;
+	border-right: 2px solid #999;
+	overflow: hidden;
+	white-space:nowrap;
+	padding: 4px 12px;
+	font-weight: 800;
+}
+
+span.gridRowCell
+{
+	white-space:nowrap;
+	border-right: 0px solid #ccc;
+	overflow: hidden;
+	white-space:nowrap;
+	padding: 4px 12px;
+}
+
+.gridRowSelected
+{
+	background-color: rgb(61, 79, 93);
+	color: White;
+}
+
+.gridResizeHandle
+{
+	width: 4px;
+	cursor: col-resize;
+	background: #999;
+	opacity: 0;
+	filter: alpha(opacity=0);
+}

@@ -1,0 +1,75 @@
+<html>
+<head>
+  <script type="text/javascript" src="http://localhost/resource/view?filename=jquery-1.11.1.min.js"></script>
+<!--  <script type="text/javascript" src="http://localhost/resource/view?filename=grid.js"></script> -->
+  <script type="text/javascript" src="./grid.js"></script>
+  <link rel="Stylesheet" type="text/css" href="http://localhost/resource/view?filename=grid.css">
+  <link rel="Stylesheet" type="text/css" href="http://localhost/resource/view?filename=normalize.css">
+  <link rel="Stylesheet" type="text/css" href="http://localhost/resource/view?filename=style.css">
+
+  <script type='text/javascript'>
+
+function data(page,size,sort,dir) {
+  return {
+    page: 2,
+    size: 3,
+    rows: 1000,
+    data: [
+    {name:"fred",age:20,country:"australia"},
+    {name:"peter",age:36,country:"australia"},
+    {name:"tony",age:22,country:"australia"},
+    {name:"paul",age:24,country:"australia"},
+    {name:"mark",age:30,country:"australia"}
+  ]};
+}
+
+  $(function() {
+    $('div#data').grid({
+      title: 'Configuration',
+      height: 150,
+      size: 10,
+      getData: data,
+      columns: ["name", "age", "country"],
+      multiSelect: false,
+      rowClick: function (row) {
+        $('form').show();
+        $('input#key').val(row.co_key);
+        $('input#key2').val(row.co_key);
+        $('input#value').val(row.co_value);
+        $('input#comment').val(row.co_comment);
+      },
+      buttons: [
+        {value: 'Delete', click: function(row) {
+          $.ajax({
+            url: "/configuration/delete",
+            type: "GET",
+            data: {"key": row.co_key}, 
+            success: function(){location.reload(true);},
+            error: function(xhr,status,error){alert(error);}
+          });
+        }},
+        {value: 'New', click: function(row) {
+          var key = prompt("Enter key:");
+          $.ajax({
+            url: "/configuration/create",
+            type: "GET",
+            data: {"key": key},
+            success: function(){location.reload(true);},
+            error: function(xhr,status,error){alert(error);}
+          });
+        }}
+      ]
+    });
+  });
+  </script>
+
+</head>
+
+<body>
+  <div id=data></div>
+
+</body>
+
+</html>
+
+
