@@ -1,5 +1,5 @@
 #!/usr/bin/lua
-
+TEST
 function main(environment)
 
   local status, result = pcall(
