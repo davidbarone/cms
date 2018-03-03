@@ -14,7 +14,7 @@ ECHO                                                                       postg
 ECHO ------------------------------------------------------------------------------------------------------------------------
 ECHO  1. Copy files (ALL) to HOST --------------#                 4. Display docker images      5. Display docker containers
 ECHO  2. Copy files (Dockerfile) to HOST -------#                 6. Delete docker image        7. Delete docker container
-ECHO                                A - Log into linode host
+ECHO                                A - Log into linode host                                    9. Start existing container
 ECHO                                8. Build docker image -------------------#
 ECHO                                                              B. Create / launch container -------------#
 ECHO                                            #---------------------------------------------- C. Copy files to host
@@ -72,6 +72,11 @@ set /P id=Enter name of image to delete:
 PLINK david@173.230.152.164 docker rmi %id% -f
 goto :end
 
+:do_7
+PLINK david@173.230.152.164 docker ps -a
+set /P id=Enter name of container to delete:
+PLINK david@173.230.152.164 docker rm %id% -f
+goto :end
 
 :do_8
 set /P name=Enter name of docker image to create:
@@ -79,7 +84,13 @@ PLINK david@173.230.152.164 cd /home/david/docker; docker build -f ./lua.Dockerf
 goto :end
 
 :do_9
+PLINK david@173.230.152.164 docker ps -a
+set /P container=Enter name of image to start:
+@ECHO docker start %container% > cmd.txt
+@ECHO docker attach %container% >> cmd.txt
 PUTTY -ssh david@173.230.152.164 -m cmd.txt -t
+PAUSE
+del cmd.txt
 goto :end
 
 :do_A
